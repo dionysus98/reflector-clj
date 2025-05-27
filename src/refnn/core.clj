@@ -1,8 +1,10 @@
 (ns refnn.core
   (:gen-class)
-  (:require [refnn.array :as a]
-            [refnn.engine :as e]
-            [oz.core :as oz]))
+  (:require
+   [clojure.string :as str]
+   [refnn.array :as a]
+   [refnn.engine :as e]
+   [oz.core :as oz]))
 
 (def ^:const reflector-model
   (let [x         (a/uniform -1 1 [1000 2])
@@ -21,14 +23,14 @@
     (e/train params)))
 
 (defn runner!
-  [model test-x test-y]
+  [model test-x test-y & {mark-opts :mark-opts plot-opts :plot-opts}]
   (let [[X Y] (e/run-model {:model model :X test-x :Y test-y})]
     (oz/view!
      [:main
       [:h3 "This is a reflector model."]
       [:span "given a set of points it'd provide the opposite points along it's vertical axis,"]
       [:vega-lite
-       {:mark "point"
+       {:mark (merge {:type "point" :shape "circle" :filled true :size 10} mark-opts)
         :data {:values (mapcat
                         (fn [tx ty ox oy]
                           [{:x tx :y ty :type "Input"}
@@ -37,7 +39,16 @@
         :encoding {:x {:field "x" :type "quantitative"}
                    :y {:field "y" :type "quantitative"}
                    :color {:field "type" :type "nominal"}}}
-       {:width 700 :height 500}]])))
+       (merge {:width 700 :height 500} plot-opts)]])))
+
+(defn read-from-file [path]
+  (->> (slurp path)
+       (str/split-lines)
+       (keep
+        (fn [point]
+          (let [[x y] (str/split point #",")]
+            (when (and x y)
+              {:x (parse-double x) :y (parse-double y)}))))))
 
 (defn run1 "U" [model]
   (let [test-x (vec (range 0 1 0.01))
@@ -59,11 +70,21 @@
         test-y (mapv #(Math/cos %) test-x)]
     (runner! model test-x test-y)))
 
+(defn run-face! "FACE" [model filepath]
+  (let [fcs (read-from-file filepath)
+        test-x (mapv :x fcs)
+        test-y (mapv :y fcs)]
+    (runner! model test-x test-y 
+             :mark-opts {:shape "cross" :size 20}
+             :plot-opts {:width 800 :height 600})))
+
 (comment
+  (oz/start-server!)
   (run1 reflector-model)
   (run2 reflector-model)
   (run3 reflector-model)
   (run4 reflector-model)
+  (run-face! reflector-model "resources/face.csv")
   :rcf)
 
 (defn greet
@@ -74,4 +95,5 @@
 (defn -main
   "I don't do a whole lot ... yet."
   [& args]
+  (run2 reflector-model)
   (greet {:name (first args)}))

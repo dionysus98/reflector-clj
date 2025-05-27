@@ -32,14 +32,14 @@
         b1 (a/zeros hidden-count 1)
         w2 (a/random out-count hidden-count :limiter limiter)
         b2 (a/zeros out-count 1)]
-    (merge params {:w1 w1 :b1 b1 :w2 w2 :b2 b2})))
+    (merge (dissoc params :limiter) {:w1 w1 :b1 b1 :w2 w2 :b2 b2})))
 
 (defn forward-prop [{:keys [a0 w1 b1 w2 b2] :as params}]
   (let [z1 (update-row (a/dot w1 a0) + (first (a/transpose b1)))
         a1 (reLU z1)
         z2 (update-row (a/dot w2 a1) + (first (a/transpose b2)))
         a2 (linear z2)]
-    (merge params {:z1 z1 :a1 a1 :z2 z2 :a2 a2})))
+    (merge params {:z1 z1 :a1 a1 :z2 z2 :a2 a2})))s
 
 (defn compute-gradient
   [{:keys [z1 a1 w2 z2 a2 a0 y] :as params}]
@@ -104,7 +104,9 @@
       (recur
        (dec epoch)
        (train-current-epoch a0 y state))
-      (assoc state :model/id id :model/X a0 :model/Y y))))
+      (-> state
+          (assoc :model/id id :model/X a0 :model/Y y)
+          (dissoc :limiter)))))
 
 (defn run-model
   [{:keys [model X Y]}]
